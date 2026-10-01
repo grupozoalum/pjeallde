@@ -262,6 +262,7 @@ body.menu-open .drawer a:nth-child(4){transition-delay:.46s}
 
 /* ══ DIRECTORIO HORIZONTAL ══ */
 .dir{background:var(--linen);border-top:1px solid rgba(20,17,16,.12)}
+.hsc{background:transparent}
 .dir-head{padding:clamp(3rem,7vw,5.5rem) var(--pad) 0;display:flex;justify-content:space-between;align-items:flex-end;gap:2rem;flex-wrap:wrap}
 .hsc{position:relative;overflow-x:auto;-webkit-overflow-scrolling:touch}
 @media(min-width:861px){html.anim .hsc{overflow:hidden}}
@@ -380,7 +381,7 @@ html.anim .srail{display:flex}
 .frame:hover .flab{background:var(--terra);color:#fff}
 
 /* ══ ANILLO ══ */
-.ring-sec{background:var(--sand);border-top:1px solid var(--sand2);border-bottom:1px solid var(--sand2);
+.ring-sec{background:var(--sand);border-bottom:1px solid var(--sand2);
   padding:clamp(4rem,9vw,7rem) 0 clamp(3.5rem,7vw,6rem);overflow:hidden}
 .stage{perspective:1500px;height:clamp(320px,48vh,470px);position:relative;margin-top:3rem}
 .stage::before,.stage::after{content:"";position:absolute;top:0;bottom:0;width:16vw;z-index:4;pointer-events:none}
@@ -1201,11 +1202,14 @@ mm.add('(min-width: 861px)',function(){
   gsap.set(cards,{transformPerspective:1200});
   var tl=gsap.timeline({scrollTrigger:{trigger:hsc,start:'top top',
       end:function(){return '+='+Math.round(dist()*(1+HOLD));},
-      pin:true,scrub:.9,invalidateOnRefresh:true,anticipatePin:1,
+      pin:true,scrub:.9,invalidateOnRefresh:true,
       onToggle:function(st){live=st.isActive;if(live)shape();},
       onUpdate:function(st){if(hrail)gsap.set(hrail,{scaleX:Math.min(1,st.progress*(1+HOLD))});}}});
   tl.to(track,{x:function(){return -dist();},ease:'none',duration:1})
-    .to({},{duration:HOLD});
+    .to({},{duration:HOLD*.45})
+    /* al final el fondo se vuelve arena y las fichas se despiden suave */
+    .to('.dir',{backgroundColor:'#EFE3D3',duration:HOLD*.55,ease:'none'},'>')
+    .to('.hrail',{opacity:0,duration:HOLD*.3,ease:'none'},'<');
   /* cada ficha gira según su distancia al centro de la pantalla */
   var live=false;
   function shape(){
@@ -1223,7 +1227,7 @@ mm.add('(min-width: 861px)',function(){
   return function(){
     gsap.ticker.remove(tick);
     if(tl.scrollTrigger)tl.scrollTrigger.kill();tl.kill();
-    gsap.set(track,{x:0});gsap.set(cards,{clearProps:'all'});
+    gsap.set(track,{x:0});gsap.set(cards,{clearProps:'all'});gsap.set(['.dir','.hrail'],{clearProps:'all'});
   };
 });
 mm.add('(max-width: 860px)',function(){
@@ -1234,8 +1238,17 @@ mm.add('(max-width: 860px)',function(){
 });
 
 /* anillo */
-ScrollTrigger.create({trigger:'.ring-sec',start:'top bottom',end:'bottom top',scrub:1.2,
-  onUpdate:function(s){scrollRot=s.progress*300;}});
+var ringSec=document.querySelector('.ring-sec');
+function ringStart(){ return ringSec.offsetHeight>innerHeight ? 'bottom bottom' : 'center center'; }
+/* entra girando un poco mientras sube */
+ScrollTrigger.create({trigger:ringSec,start:'top bottom',end:ringStart,scrub:1,invalidateOnRefresh:true,
+  onUpdate:function(s){preRot=s.progress*40;}});
+/* fijo: una vuelta completa (360°) y luego suelta */
+var ringPin=ScrollTrigger.create({trigger:ringSec,start:ringStart,
+  end:function(){return '+='+Math.round(innerHeight*1.8);},
+  pin:true,scrub:1,invalidateOnRefresh:true,
+  onUpdate:function(s){scrollRot=s.progress*360;}});
+var preRot=0;
 
 /* persianas */
 document.querySelectorAll('[data-shut]').forEach(function(frame){
@@ -1275,6 +1288,7 @@ chapters.forEach(function(c,i){
 });
 function setRail(i){ticks.forEach(function(t,k){t.classList.toggle('on',k<=i);});}
 setRail(0);
+if(document.querySelector('.story')){
 var tlS=gsap.timeline({scrollTrigger:{trigger:'.story',start:'top top',
   end:'+='+(chapters.length*100)+'%',pin:true,scrub:.9,invalidateOnRefresh:true,anticipatePin:1,
   onUpdate:function(s){setRail(Math.min(chapters.length-1,Math.round(s.progress*(chapters.length-1))));}}});
@@ -1295,6 +1309,8 @@ chapters.forEach(function(ch,i){
     Object.assign({y:0,opacity:1,scale:1,duration:.65,ease:'pa.veil',stagger:.07},IR),L+'+=0.42');
   if(cta) tlS.fromTo(cta,{y:26,opacity:0},Object.assign({y:0,opacity:1,duration:.7,ease:'pa.veil'},IR),L+'+=0.5');
 });
+
+}
 
 /* letras del cierre: se abren y suben */
 var LS=gsap.utils.toArray('#letters span');
@@ -1375,7 +1391,7 @@ function runIntro(){
 var skewSet=gsap.quickSetter(skewTargets,'skewY','deg');
 gsap.ticker.add(function(time){
   readVel();
-  if(ringOn){autoRot+=0.05+velAbs*0.4;renderRing(autoRot+scrollRot);}
+  if(ringOn){autoRot+=0.03;renderRing(autoRot+preRot+scrollRot);}
   if(CUR) CUR.frame();
   if(FX) FX.render(time,fxState.int);
   skewSet(vel*-4.5);
